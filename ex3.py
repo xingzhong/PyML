@@ -38,18 +38,18 @@ class SYSTEM:
             n = n + 1
             if n>self.N:
                 break
-        self.MPerr = norm(self.MPXX-self.X,2)/np.sqrt(self.N)
+        self.MPerr = norm(self.MPXX-self.X,2)/norm(self.X,2)
 
     def LS(self):
         self.LSXX = pinv(self.A) * self.Y
-        self.LSerr = norm(self.LSXX-self.X, 2)/np.sqrt(self.N)
+        self.LSerr = norm(self.LSXX-self.X, 2)/norm(self.X,2)
     
     def L1(self):
         A = cvxmatrix(self.A)
         Y = cvxmatrix(self.Y)
         X = cvxmatrix(self.X)
         self.L1XX = l1regls(A, Y)
-        self.L1err = norm(self.L1XX-X, 2)/np.sqrt(self.N)
+        self.L1err = norm(self.L1XX-X, 2)/norm(self.X,2)
 
     def draw(self):
         N = np.arange(self.N)
@@ -60,8 +60,8 @@ class SYSTEM:
         pb.scatter(N, X, s=40, c='g', marker = 's', label='LS')
         X = np.asarray(self.L1XX)
         pb.scatter(N, X, s=40, c='r', marker = 'o',label='L1')
-        X = np.asarray(self.MPXX)
-        pb.scatter(N, X, s=40, c='m', marker = 'v',label='MP')
+        #X = np.asarray(self.MPXX)
+        #pb.scatter(N, X, s=40, c='m', marker = 'v',label='MP')
         pb.legend()
 
     def debug(self):
@@ -74,10 +74,10 @@ class SYSTEM:
         print self.L1err
         print self.MPerr
 
-N = 200
-K = 40
+N = 128
+K = 512
 D = 20.0
-SNR = [-6, -3,0,3,7, 10, 13,17,20,25,30,40]
+SNR = np.linspace(-10,20,20)
 err1 = []
 err2 = []
 err3 = []
@@ -97,16 +97,16 @@ for snr in SNR:
         test = SYSTEM(N=N,K=K, D=D, SNR=snr)
         test.LS()
         test.L1()
-        test.mp()
+        #test.mp()
         LSE.append(test.LSerr)
         L1E.append(test.L1err) 
-        MPE.append(test.MPerr) 
+        #MPE.append(test.MPerr) 
     err1.append(np.mean(LSE))
     err2.append(np.mean(L1E))
-    err3.append(np.mean(MPE))
+    #err3.append(np.mean(MPE))
 pb.semilogy(SNR, err1, '+',label='LS')
 pb.semilogy(SNR, err2, 'o',label='L1')
-pb.semilogy(SNR, err3, '*',label='MP')
+#pb.semilogy(SNR, err3, '*',label='MP')
 pb.grid(True)
 pb.legend()
 pb.show()
