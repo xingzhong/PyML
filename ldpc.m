@@ -1,6 +1,6 @@
 clear all;
 clc;
-block = 5e5; %simulation block
+block = 5e2; %simulation block
 N = 7;  %code length
 K = 4;  %info length
 R = N-K;    %check length
@@ -25,12 +25,12 @@ H = [
     0 0 0 1 1 1 1;
 ]
 
-SNR = [-3:3:9];
+SNR = [0:3:9];
 BER = [];
 ERR = [];
 THE = [];
-THEC = [];
-%SNR = [3];
+LSNR = [];
+SNR = [0];
 for snr = SNR 
     snr
     source = randi([0,1],[K,block]);
@@ -38,47 +38,52 @@ for snr = SNR
 
     tx = coding * 2 -1;
     lsnr = 10^(-snr/10);
-    N0 = lsnr;
-    noise = sqrt(N0/2)  * randn(N, block) ;
-
+    LSNR = [LSNR 1/lsnr];
+    Ps = sum(sum(abs(tx).^2))/(K * block) ;
+    N0 = lsnr * Ps;
+    noise =  sqrt(N0/2) * (reshape( randn(1, N*block), N, block) + sqrt(-1)*randn(N,block));
+    Pn = sum(sum(abs(noise).^2))/( N * block);
     rx = tx + noise ;
     decoding = rx > 0;
 
     S = mod( H * decoding, 2 ); %syndrome 
-%% Linear Block coding assume the error is limited, otherwise over the error
-%   capacity. Actually, it is the most sparse error vector solution to induce
-%   the error syndrome
+    %% Linear Block coding assume the error is limited, otherwise over the error
+    %%   capacity. Actually, it is the most sparse error vector solution to induce
+    %%   the error syndrome
     E = zeros(N, block);
     for b = 1 : block
-        idx = 0;
-        for i = 1 : N
-            if H(:, i) == S(:,b)
-                idx = i;
-            end
-        end
-        if idx ~= 0
-            E(idx, b) = 1;
+        if norm(S(:,b)) ~= 0
+            E(:, b) = l1(H, S(:,b));
         end
     end
+    E = E > 0.1;
+    %%
+%%    for b = 1 : block
+%%        idx = 0;
+%%        for i = 1 : N
+%%           if H(:, i) == S(:,b)
+%%                idx = i;
+%%            end
+%%        end
+%%        if idx ~= 0
+%%            E(idx, b) = 1;
+%%        end
+%%    end
+    
     correct = mod ( decoding + E, 2);
     sink = Rec * correct;
+
     error = nnz(source-sink);
     ber = error/ (block*K);
     ebn0 = 1/lsnr
     ecn0 = K * ebn0 / N
-    tber  = 1/2 * erfc(sqrt(ebn0));
-    tberc = 1/2 * erfc(sqrt(ecn0));
-    err = nnz(coding-decoding)/(N*block);
-    terc = tberc - tberc*(1-tberc)^(N-1);
-    ERR = [ERR err];
+    pb = Q(sqrt(2 * ecn0));
+    the = pb - pb*(1 - pb)^(N-1)
     BER =[BER ber];
-    THE =[THE tber];
-    THEC = [THEC terc];
+    THE =[THE the];
 end
-SNR
-ERR
-THE
-BER
-THEC
-semilogy(SNR, BER, '-', SNR, ERR, '--', SNR, THE, '+', SNR, THEC, '*');
-legend('Coding', 'Un-Coding', 'Theortical Un-Coding', 'Theortical Coding');
+[SNR; BER; THE]
+bpske = Q(sqrt(2 * LSNR ));
+semilogy(SNR, BER, '-', SNR, THE, '+', SNR, bpske, '-');
+legend('Coding' , 'Theortical Coding', 'Theortical BPSK');
+grid on
